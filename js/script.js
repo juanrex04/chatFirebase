@@ -7,46 +7,78 @@ const text = document.getElementById("text");
 
 firebase.auth().onAuthStateChanged((user) => {
   if (user) {
-
+    chat.innerHTML = "";
     actionSignOff();
-    nameUser.innerHTML = user.displayName
-    console.log(user.uid)
-    console.log(user.displayName)
-    contentChat(user)
+    nameUser.innerHTML = user.displayName;
+    contentChat(user);
   } else {
     actionLogin();
-    nameUser.innerHTML = `BChat`
+    nameUser.innerHTML = `BChat`;
+    chat.innerHTML = `<p class="Lead mt-5 text-center"> Please Log-in to use this app!</p>`;
   }
 });
 
-const contentChat = user =>{
-    
-    form.addEventListener('submit', e =>{
-        e.preventDefault()
-        console.log(text.value)
+const contentChat = (user) => {
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    console.log(text.value);
 
-        if(!text.value.trim()){
-            console.log('Empty')
-            return
+    if (!text.value.trim()) {
+      console.log("Empty");
+      return;
+    }
+
+    firebase
+      .firestore()
+      .collection("chat")
+      .add({
+        textWrite: text.value,
+        uid: user.uid,
+        dateText: Date.now(),
+      })
+      .then((res) => {
+        console.log("correct!");
+      });
+
+    text.value = "";
+  });
+
+  firebase
+    .firestore()
+    .collection("chat")
+    .orderBy("dateText")
+    .onSnapshot((snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          console.log("Chat added: ", change.doc.data());
+
+          if (user.uid === change.doc.data().uid) {
+            chat.innerHTML += `
+            <div class="text-end">
+                <span class="badge bg-primary">${
+                  change.doc.data().textWrite
+                }</span>
+            </div>
+            `;
+          } else {
+            chat.innerHTML += `
+              <div class="text-start">
+                <span class="badge bg-success">${
+                  change.doc.data().textWrite
+                }</span>
+              </div>
+              `;
+          }
+
+          chat.scrollTop = chat.scrollHeight
         }
-
-        firebase.firestore().collection('chat').add({
-           textWrite: text.value,
-           uid: user.uid,
-           dateText: Date.now()
-        }).then(res => {
-            console.log('correct!')
-        })
-
-        text.value = "";
-    })
-}
+      });
+    });
+};
 
 const actionLogin = () => {
   console.log("User without register 😥");
   form.classList.add("d-none");
-  chat.innerHTML = `
-  <p class="Lead mt-5 text-center"> Please Log-in to use this app!</p>`;
 
   btnLogin.addEventListener("click", async () => {
     const provider = new firebase.auth.GoogleAuthProvider();
@@ -63,6 +95,6 @@ const actionSignOff = () => {
   console.log("User register!");
   form.classList.remove("d-none");
   btnSignOff.addEventListener("click", () => {
-    firebase.auth().signOut()
+    firebase.auth().signOut();
   });
 };
